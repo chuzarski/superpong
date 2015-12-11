@@ -1,16 +1,45 @@
 # Program: Pong
-# Date: 11-12-2015
+# Date: 12-10-2015
 # Edited by: Cody Huzarski
 
 SURFACE_WIDTH = 800
 SURFACE_HEIGHT = 600
 
-import pygame, sys, math
+import pygame, sys, math, time
 from pygame.locals import *
 from rotating_rectangle import RotatingRect
 from controllers import *
 
 
+
+def select_effect():
+    effects = ["large_paddle", "flash_bg"]
+class MessageBus():
+
+    def __init__(self):
+        self.__clients = dict()
+
+    def register(self, type, obj):
+
+        # check for exisitng message type
+        if type in self.__clients:
+            # Append the object to the type list
+            self.__clients[type].append(obj)
+        else:
+            # Create the new message type and add the object
+            self.__clients[type] = list()
+            self.__clients[type].append(obj)
+
+    def post(self, type):
+
+        type = str(type)
+
+
+        if type in self.__clients:
+            for c in self.__clients.get(type):
+                c.message_bus_recieve(type)
+        else:
+            return False
 
 class Player():
 
@@ -19,20 +48,24 @@ class Player():
         self.__name = name
         self.__controller = Controller() # default controller. Does nothing when polled
 
-        self.__move_rate = 4
+        self.__position = pos
+
+        self.__move_rate = 6
         self.__rotate_rate = 1
         self.__rotate_max = 10
         self.__rotate_min = -10
 
+        self.__scoring_font = pygame.font.Font("PROMETHEUS.ttf", 64)
+
+        self.__score = 0
+
         # init
-        try:
-            self.set_player_pos(pos)
-        except ValueError():
-            print("Incorrect position passed to the player")
-            exitGame()
+        self.set_initial_pos(self.__position)
 
+    def __reset(self):
+        self.set_initial_pos(self.__position)
 
-    def set_player_pos(self, pos):
+    def set_initial_pos(self, pos):
 
         paddle_height = 80
         paddle_width = 10
@@ -51,11 +84,40 @@ class Player():
     def get_paddle(self):
         return self.__paddle
 
+    def get_rotation(self):
+        return self.__paddle.get_rotation()
+
     def get_name(self):
         return self.__name
 
     def set_controller(self, con):
         self.__controller = con
+
+    def get_score(self):
+        return self.__score
+
+    def draw_score(self, surface):
+
+        x_margin = 25
+        y_margin = 50
+
+        if self.__position == "l":
+            horiz_pos = self.__paddle.getX() + x_margin
+        elif self.__position == "r":
+            horiz_pos = SURFACE_WIDTH - 64 - x_margin
+        else:
+            horiz_pos = SURFACE_WIDTH / 2
+
+        scoreBlit = self.__scoring_font.render(str(self.__score), 1, (255, 255, 255))
+        surface.blit(scoreBlit, (horiz_pos, y_margin))
+
+    def score(self):
+        self.__score = self.__score + 1
+
+    def message_bus_recieve(self, type):
+
+        if type == "reset":
+            self.__reset()
 
     def update_movement(self):
         e = self.__controller.poll()
@@ -108,43 +170,55 @@ class Player():
 
     def did_collide(self, ball):
 
-        #For now simple bounding box collision will work but will not look right
-        # TODO IMPLEMENT SAT COLLISION
-
+        # For now simple bounding box collision will work but will not look right
         paddle_rect = self.__paddle.get_rect()
         bX = ball.getX()
         bY = ball.getY()
 
         return paddle_rect.collidepoint(bX, bY)
 
+    def draw(self, surface):
+        self.__paddle.draw(surface)
+        self.draw_score(surface)
 
 class Ball():
 
     def __init__(self):
         self.__rect = None
+        self.__set_initial_values()
+
+
+
+    def __reset(self):
+        self.__set_initial_values()
+
+    def __set_initial_values(self):
         self.__move_rate = 3
         self.__x = SURFACE_WIDTH / 2
         self.__y = SURFACE_HEIGHT / 2
-        self.__move_rate = 3
         self.__radius = 7
+        self.__x_flip = -1
+        self.__y_flip = 1
+        self.__effect = False
 
+    def get_effect(self):
+        return self.__effect
 
-        self.__vx = self.__x
-        self.__vy = self.__y
-        self.__m = 1
+    def set_effect(self, effect):
+        effect = str(effect)
+        self.__effect = effect
+
+    def message_bus_recieve(self, type):
+
+        if type is "reset":
+            self.__reset()
 
     def get_rect(self):
         return self.__rect
 
     def update_movement(self):
-
-        # keep ref of last point
-        self.__vx = self.__x
-        self.__vy = self.__y
-
-        self.__x = self.__x - self.__move_rate
-        self.__y = self.__y + self.__m
-
+        self.__x = self.__x + (self.__move_rate * self.__x_flip)
+        self.__y = self.__y - (self.__move_rate * self.__y_flip)
 
     def draw(self, surface, color=(255, 255, 255)):
         self.__rect = pygame.draw.circle(surface, color, (int(self.__x), int(self.__y)), self.__radius)
@@ -155,30 +229,17 @@ class Ball():
     def getY(self):
         return self.__y
 
-    def recalculateY(self, normal):
+    def getX_flip(self):
+        return self.__x_flip
 
-        incoming = self.calculateIncomingAngle()
-        diff = 0
-        bA = 0
-
-        # Find angle that we bounce off surface
-        diff = (180 + incoming) - normal
-        bA = 180 - diff
-        bA = math.radians(bA)
-        # find new slope
-        self.__m = math.sin(bA) / math.cos(bA)
-
-    def calculateIncomingAngle(self):
-
-        sA = math.fabs(self.__vx - self.__x)
-        sB = self.__vy - self.__y
-        return math.degrees(math.atan(sB / sA))
+    def getY_flip(self):
+        return self.__y_flip
 
     def flipX(self):
-        self.__move_rate = self.__move_rate * -1
+        self.__x_flip = self.__x_flip * -1
 
-    def flipM(self):
-        self.__m = self.__m * -1
+    def flipY(self):
+        self.__y_flip = self.__y_flip * -1
 
 def exitCheck():
     for event in pygame.event.get():
@@ -189,12 +250,35 @@ def exitGame():
     pygame.quit()
     sys.exit()
 
+def handle_paddle_collision(p, ball):
+
+    if p.get_rotation() == 0:
+        ball.flipX()
+
+    elif p.get_rotation() < 0 and ball.getY_flip() == 1:
+        # Paddle is rotated FORWARD and ball is headed UP
+        ball.flipX()
+        ball.flipY()
+    elif p.get_rotation() > 0 and ball.getY_flip() == 1:
+        # Paddle is rotated BACKWARD and ball is headed
+        ball.flipX()
+    elif p.get_rotation() < 0 and ball.getY_flip() == -1:
+        # Paddle is rotated BACKWARD and ball is headed DOWN
+        ball.flipX()
+        ball.flipY()
+    elif p.get_rotation() > 0 and ball.getY_flip() == -1:
+        ball.flipX()
+
+
 def main():
     pygame.init()
     surface = pygame.display.set_mode((SURFACE_WIDTH, SURFACE_HEIGHT))
     pygame.display.set_caption("Super Pong!")
     clock = pygame.time.Clock()
     FPS = 60
+    last_collision = time.time()
+
+    message_bus = MessageBus()
 
     # ball
     ball = Ball()
@@ -205,6 +289,11 @@ def main():
 
     p1.set_controller(KeyboardController(K_w, K_s, K_a, K_d))
     p2.set_controller(KeyboardController(K_UP, K_DOWN, K_RIGHT, K_LEFT))
+
+    # Register for event registration
+    message_bus.register("reset", p1)
+    message_bus.register("reset", p2)
+    message_bus.register("reset", ball)
 
 
     while True:
@@ -219,28 +308,31 @@ def main():
         # draw
         surface.fill((0, 0, 0))
 
-        p1.get_paddle().draw(surface)
-        p2.get_paddle().draw(surface)
+        p1.draw(surface)
+        p2.draw(surface)
 
         ball.draw(surface)
 
-        # Test collisions
-        # TODO collisions should only be tested if and only if they are possible (i.e. don't test paddle collision when ball is at center of screen)
+        if (time.time() - last_collision) > .5: # Fixes a glitch that causes the ball to collide with paddles infinitely
+            # Test collisions
+            if p1.did_collide(ball):
+                handle_paddle_collision(p1, ball)
 
-        if p1.did_collide(ball):
-            print("Ball collision with player 1")
-            ball.recalculateY(p1.get_relative_angle())
-            ball.flipX()
-            ball.flipM()
-        if p2.did_collide(ball):
-            print("Ball collision with player 2")
-            ball.recalculateY(p1.get_relative_angle())
-            ball.flipX()
-            ball.flipM()
+            if p2.did_collide(ball):
+                handle_paddle_collision(p2, ball)
+
 
         # test wall collisions
         if ball.getY() <= 0 or ball.getY() >= SURFACE_HEIGHT:
-            ball.flipM()
+            ball.flipY()
+
+        if ball.getX() <= 0:
+            p2.score()
+            message_bus.post("reset")
+
+        if ball.getX() >= SURFACE_WIDTH:
+            p1.score()
+            message_bus.post("reset")
 
         pygame.display.flip()
         clock.tick(FPS)
