@@ -1,4 +1,4 @@
-# Program: Pong
+# Program: Superpong !
 # Date: 12-10-2015
 # Edited by: Cody Huzarski
 
