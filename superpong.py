@@ -9,6 +9,7 @@ from rotating_rectangle import RotatingRect
 from controllers import *
 from util import LifeCycles
 from game import Game
+from start_screen import StartScreen
 
 
 def exitCheck():
@@ -23,8 +24,8 @@ def exitGame():
 
 def main():
 
-    surface_width = 1280
-    surface_height = 720
+    surface_width = 960
+    surface_height = 540
 
     pygame.init()
     surface = pygame.display.set_mode((surface_width, surface_height))
@@ -34,19 +35,32 @@ def main():
     lifecycles = LifeCycles()
     curr_lifecycle = None
 
+    result = 0
+
     # register all lifecycles
     lifecycles.register_lifecycle("game", Game(surface))
+    lifecycles.register_lifecycle("start", StartScreen(surface))
 
-    curr_lifecycle = lifecycles.get_lifecycle("game")
+    curr_lifecycle = lifecycles.get_lifecycle("start")
 
     while True:
         # First thing to do is check for exit
         exitCheck()
 
+        if result == 100:
+            curr_lifecycle = lifecycles.get_lifecycle("game")
+        elif result == 200:
+            lifecycles.get_lifecycle("game").__init__(surface)
+            curr_lifecycle = lifecycles.get_lifecycle("game")
+        elif result == 1:
+            lifecycles.get_lifecycle("start").set_winning_player(1)
+            curr_lifecycle = lifecycles.get_lifecycle("start")
+        elif result == 2:
+            lifecycles.get_lifecycle("start").set_winning_player(2)
+            curr_lifecycle = lifecycles.get_lifecycle("start")
 
         # Lifecycle cycle method is called here
-
-        curr_lifecycle.cycle()
+        result = curr_lifecycle.cycle()
 
 
         # End of loop

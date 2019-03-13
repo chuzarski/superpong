@@ -23,6 +23,8 @@ class Player():
         self.surface_height = 0
         self.surface_width = 0
 
+        self.paddle_grow_active = False
+
         # set dimensions
         self.set_surf_size(surf_size)
 
@@ -31,6 +33,7 @@ class Player():
 
     def reset(self):
         self.set_initial_pos(self.__position)
+        self.paddle_grow_active = False
 
     def set_surf_size(self, surf_size):
         if isinstance(surf_size, tuple):
@@ -57,6 +60,15 @@ class Player():
 
     def get_paddle(self):
         return self.__paddle
+
+    def grow(self):
+        max = 140
+        if self.__paddle.get_height() < max:
+            self.__paddle.set_height(self.__paddle.get_height() + 2)
+    def shrink(self):
+        default = 80
+        if self.__paddle.get_height() > default:
+            self.__paddle.set_height(self.__paddle.get_height() - 2)
 
     def get_rotation(self):
         return self.__paddle.get_rotation()
@@ -107,6 +119,11 @@ class Player():
         elif e[self.__controller.CONTROL_ROT_FORWARD] == False and e[self.__controller.CONTROL_ROT_BACKWARD] == False:
             self.__rotate('n')
 
+        # paddle growth
+        if self.paddle_grow_active:
+            self.grow()
+        else:
+            self.shrink()
     def __move(self, flag):
 
         if flag == 'u':
@@ -167,6 +184,10 @@ class Ball():
 
         if charge is "FAST_BALL":
             self.set_color(COLOR_RED)
+        elif charge is "COLOR_FLASH":
+            self.set_color(COLOR_YELLOW)
+        elif charge is "PAD_GROW":
+            self.set_color(COLOR_CYAN)
 
     def get_charge(self):
         return self.__ball_charge
@@ -196,9 +217,6 @@ class Ball():
         self.__y_flip = 1
         self.__ball_charge = ""
         self.__color = COLOR_WHITE
-
-    def get_effect(self):
-        return self.__effect
 
     def set_effect(self, effect):
         effect = str(effect)

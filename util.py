@@ -1,30 +1,3 @@
-class MessageBus():
-
-    def __init__(self):
-        self.__clients = dict()
-
-    def register(self, type, obj):
-
-        # check for exisitng message type
-        if type in self.__clients:
-            # Append the object to the type list
-            self.__clients[type].append(obj)
-        else:
-            # Create the new message type and add the object
-            self.__clients[type] = list()
-            self.__clients[type].append(obj)
-
-    def post(self, type):
-
-        type = str(type)
-
-
-        if type in self.__clients:
-            for c in self.__clients.get(type):
-                c.message_bus_recieve(type)
-        else:
-            return False
-
 class LifeCycle():
     def __init__(self, surface):
 
